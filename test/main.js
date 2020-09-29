@@ -13,7 +13,7 @@ describe("XVault", function () {
       let carolBal = await xToken.balanceOf(carol._address);
       let vaultBal = await xToken.balanceOf(xVault.address);
       let supply = await xToken.totalSupply();
-      let vaultNFTBal = await nft.balanceOf(xVault.address);
+      let vaultNFTBal = await cpm.balanceOf(xVault.address);
 
       const isCorrect =
         vaultBal.toString() === "0" &&
@@ -41,17 +41,17 @@ describe("XVault", function () {
 
     // Initialize...
 
-    const Erc721 = await ethers.getContractFactory("ERC721");
+    const Cpm = await ethers.getContractFactory("CryptoPunksMarket");
     const XToken = await ethers.getContractFactory("XToken");
     const XVault = await ethers.getContractFactory("XVault");
 
-    const nft = await Erc721.deploy("Nft", "NFT");
-    await nft.deployed();
+    const cpm = await Cpm.deploy();
+    await cpm.deployed();
 
     const xToken = await XToken.deploy("XToken", "XTO");
     await xToken.deployed();
 
-    const xVault = await XVault.deploy(xToken.address, nft.address);
+    const xVault = await XVault.deploy(xToken.address, cpm.address);
     await xVault.deployed();
 
     const [initialOwner, alice, bob, carol] = await ethers.getSigners();
@@ -61,7 +61,7 @@ describe("XVault", function () {
     const initialBalance = await xToken.balanceOf(initialOwner._address);
     await xToken.connect(initialOwner).transfer(xVault.address, initialBalance);
 
-    // XVault: *.mintERC20 *.redeemERC20
+    // XVault: *.mintPunk *.redeemERC20
 
     const approveAndMint = async (
       signer,
@@ -70,31 +70,31 @@ describe("XVault", function () {
       tokenAlreadyExists = false
     ) => {
       if (!tokenAlreadyExists) {
-        await nft.connect(signer).safeMint(signer._address, tokenId);
+        await cpm.connect(signer).setInitialOwner(signer._address, tokenId);
       }
-      await nft.connect(signer).approve(xVault.address, tokenId);
-      await xVault.connect(signer).mintERC20(tokenId, { value: value });
+      await cpm.connect(signer).offerPunkForSaleToAddress(tokenId, 0, xVault.address);
+      await xVault.connect(signer).mintPunk(tokenId, { value: value });
     };
 
     const approveAndRedeem = async (signer, value = 0) => {
       await xToken.connect(signer).approve(xVault.address, BASE);
-      await xVault.connect(signer).redeemERC721({ value: value });
+      await xVault.connect(signer).redeemPunk({ value: value });
     };
 
     for (let i = 0; i < 10; i++) {
       await approveAndMint(alice, i);
       await approveAndMint(bob, 10 + i);
     }
-
+    
     for (let i = 0; i < 10; i++) {
       await approveAndRedeem(alice);
       await approveAndRedeem(bob);
     }
-
+    
     const getUserHoldings = async (address, tokenSupply) => {
       let list = [];
       for (let i = 0; i < 20; i++) {
-        const nftOwner = await nft.ownerOf(i);
+        const nftOwner = await cpm.punkIndexToAddress(i);
         if (nftOwner === address) {
           list.push(i);
         }
@@ -108,79 +108,87 @@ describe("XVault", function () {
     console.log(aliceNFTs);
     console.log(bobNFTs);
     console.log();
-    console.log("✓ XVault: mintERC20, redeemERC20");
+    console.log("✓ XVault: mintPunk, redeemERC20");
     console.log();
 
     await checkBalances();
-
+    
     // XVault: *.mintAndRedeem
 
     await expectRevert(xVault.connect(alice).mintAndRedeem(bobNFTs[0]));
     await expectRevert(xVault.connect(alice).mintAndRedeem(aliceNFTs[0]));
-    await nft.connect(alice).approve(xVault.address, aliceNFTs[0]);
+    await cpm.connect(alice).offerPunkForSaleToAddress(aliceNFTs[0], 0, xVault.address);
+    
     await xVault.connect(alice).mintAndRedeem(aliceNFTs[0]);
-    expect(await nft.ownerOf(aliceNFTs[0])).to.equal(alice._address);
-    await nft.connect(bob).approve(xVault.address, bobNFTs[0]);
-    await nft.connect(bob).approve(xVault.address, bobNFTs[1]);
-    await xVault.connect(bob).mintERC20(bobNFTs[0]);
-    await xVault.connect(bob).mintERC20(bobNFTs[1]);
-    await nft.connect(alice).approve(xVault.address, aliceNFTs[0]);
+    expect(await cpm.punkIndexToAddress(aliceNFTs[0])).to.equal(alice._address);
+    await cpm.connect(bob).offerPunkForSaleToAddress(bobNFTs[0], 0, xVault.address);
+    await cpm.connect(bob).offerPunkForSaleToAddress(bobNFTs[1], 0, xVault.address);
+    await xVault.connect(bob).mintPunk(bobNFTs[0]);
+    await xVault.connect(bob).mintPunk(bobNFTs[1]);
+    await cpm.connect(alice).offerPunkForSaleToAddress(aliceNFTs[0], 0, xVault.address);
     await xVault.connect(alice).mintAndRedeem(aliceNFTs[0]);
     const selections = [];
     for (let i = 0; i < 10; i++) {
       const newSelection =
-        (await nft.ownerOf(bobNFTs[0])) == alice._address
+        (await cpm.punkIndexToAddress(bobNFTs[0])) == alice._address
           ? bobNFTs[0]
-          : (await nft.ownerOf(bobNFTs[1])) == alice._address
+          : (await cpm.punkIndexToAddress(bobNFTs[1])) == alice._address
           ? bobNFTs[1]
           : aliceNFTs[0];
       selections.push(newSelection);
-      await nft.connect(alice).approve(xVault.address, newSelection);
+      await cpm.connect(alice).offerPunkForSaleToAddress(newSelection, 0, xVault.address);
       await xVault.connect(alice).mintAndRedeem(newSelection);
     }
     await xToken.connect(bob).approve(xVault.address, BASE.mul(2).toString());
-    await xVault.connect(bob).redeemERC721();
-    await xVault.connect(bob).redeemERC721();
+    await xVault.connect(bob).redeemPunk();
+    await xVault.connect(bob).redeemPunk();
     console.log(selections);
     console.log("✓ XVault: mintAndRedeem");
     console.log();
-
+    
     await checkBalances();
 
-    // XVault: *.mintERC20s, *.redeemERC721s
+
+    const setApprovalForAll = async (signer, address, tokenIds) => {
+      for (let i = 0; i < tokenIds.length; i++) {
+        const tokenId = tokenIds[i];
+        await cpm.connect(signer).offerPunkForSaleToAddress(tokenId, 0, address);
+      } 
+    }
+
+    // XVault: *.mintPunkMultiple, *.redeemERC721s
 
     aliceNFTs = await getUserHoldings(alice._address, 20);
     bobNFTs = await getUserHoldings(bob._address, 20);
-    await nft.connect(alice).setApprovalForAll(xVault.address, true);
-    await nft.connect(bob).setApprovalForAll(xVault.address, true);
-    await xVault.connect(alice).mintERC20s(aliceNFTs.slice(0, 5));
+    await setApprovalForAll(alice, xVault.address, aliceNFTs);
+    await setApprovalForAll(bob, xVault.address, bobNFTs);
+    await xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(0, 5));
     for (let i = 0; i < 5; i++) {
-      expect(await nft.ownerOf(aliceNFTs[i])).to.equal(xVault.address);
+      expect(await cpm.punkIndexToAddress(aliceNFTs[i])).to.equal(xVault.address);
     }
     for (let i = 5; i < 10; i++) {
-      expect(await nft.ownerOf(aliceNFTs[i])).to.equal(alice._address);
+      expect(await cpm.punkIndexToAddress(aliceNFTs[i])).to.equal(alice._address);
     }
     const FIVE = BASE.mul(5).toString();
     expect((await xToken.balanceOf(alice._address)).toString()).to.equal(FIVE);
     await xToken.connect(alice).approve(xVault.address, FIVE);
-    await xVault.connect(alice).redeemERC721s(5);
+    await xVault.connect(alice).redeemPunkMultiple(5);
     for (let i = 0; i < 10; i++) {
-      expect(await nft.ownerOf(aliceNFTs[i])).to.equal(alice._address);
+      expect(await cpm.punkIndexToAddress(aliceNFTs[i])).to.equal(alice._address);
     }
     expect((await xToken.balanceOf(alice._address)).toString()).to.equal("0");
 
     console.log();
-    console.log("✓ XVault: mintERC20s, redeemERC721s");
+    console.log("✓ XVault: mintPunkMultiple, redeemERC721s");
     console.log();
 
     await checkBalances();
-    // return;
 
     // XVault: *.mintAndRedeemMultiple
 
     aliceNFTs = await getUserHoldings(alice._address, 20);
     bobNFTs = await getUserHoldings(bob._address, 20);
-    await xVault.connect(bob).mintERC20s(bobNFTs);
+    await xVault.connect(bob).mintPunkMultiple(bobNFTs);
     await xVault.connect(alice).mintAndRedeemMultiple(aliceNFTs);
     let _aliceNFTs = await getUserHoldings(alice._address, 20);
     let list = [];
@@ -190,8 +198,9 @@ describe("XVault", function () {
     }
     console.log(list);
     await xToken.connect(bob).approve(xVault.address, BASE.mul(10).toString());
-    await xVault.connect(bob).redeemERC721s(10);
+    await xVault.connect(bob).redeemPunkMultiple(10);
 
+    return;
     // Manageable
 
     await expectRevert(
@@ -227,7 +236,7 @@ describe("XVault", function () {
     await expectRevert(
       xVault.connect(carol).mintRetroactively(aliceNFTs[0], alice._address)
     );
-    await nft
+    await cpm
       .connect(alice)
       .transferFrom(alice._address, xVault.address, aliceNFTs[0]);
     ////////////////////////////////////////////////////////////////////////
@@ -235,7 +244,7 @@ describe("XVault", function () {
     console.log("waiting...");
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
     ////////////////////////////////////////////////////////////////////////
-    await expectRevert(xVault.connect(alice).mintERC20(aliceNFTs[0]));
+    await expectRevert(xVault.connect(alice).mintPunk(aliceNFTs[0]));
     await expectRevert(
       xVault.connect(carol).mintRetroactively(bobNFTs[0], alice._address)
     );
@@ -286,13 +295,13 @@ describe("XVault", function () {
 
     await xVault.connect(carol).setMintFees([2, 2, 2]);
     await expectRevert(
-      xVault.connect(alice).mintERC20(aliceNFTs[0], { value: 1 })
+      xVault.connect(alice).mintPunk(aliceNFTs[0], { value: 1 })
     );
-    await xVault.connect(alice).mintERC20(aliceNFTs[0], { value: 2 });
+    await xVault.connect(alice).mintPunk(aliceNFTs[0], { value: 2 });
     await expectRevert(
-      xVault.connect(alice).mintERC20s(aliceNFTs.slice(2, 5), { value: 7 })
+      xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(2, 5), { value: 7 })
     );
-    await xVault.connect(alice).mintERC20s(aliceNFTs.slice(2, 5), { value: 8 });
+    await xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(2, 5), { value: 8 });
     await checkBalances();
     // Profitable: *.setDualFees
     aliceNFTs = await getUserHoldings(alice._address, 20);
@@ -318,9 +327,9 @@ describe("XVault", function () {
     await expectRevert(
       xVault.connect(alice).setIntegrator(alice._address, true)
     );
-    await expectRevert(xVault.connect(alice).mintERC20(aliceNFTs[0]));
+    await expectRevert(xVault.connect(alice).mintPunk(aliceNFTs[0]));
     await xVault.connect(carol).setIntegrator(alice._address, true);
-    await xVault.connect(alice).mintERC20(aliceNFTs[0]);
+    await xVault.connect(alice).mintPunk(aliceNFTs[0]);
 
     await xToken.connect(alice).approve(xVault.address, BASE.mul(4).toString());
     await xVault.connect(alice).redeemERC721s(4);
@@ -345,14 +354,14 @@ describe("XVault", function () {
     );
     await xVault.connect(carol).setController(alice._address, true);
     await xVault.connect(alice).directRedeem(vaultNFTs[0], alice._address);
-    expect(await nft.ownerOf(vaultNFTs[0])).to.equal(alice._address);
+    expect(await cpm.ownerOf(vaultNFTs[0])).to.equal(alice._address);
 
     console.log();
     console.log("✓ Controllable");
 
     //
     await xVault.connect(carol).setController(alice._address, false);
-    await xVault.connect(alice).mintERC20(vaultNFTs[0]);
+    await xVault.connect(alice).mintPunk(vaultNFTs[0]);
     await xVault.connect(carol).lock(1);
     console.log();
     console.log("✓ Timelock.Medium");
@@ -375,15 +384,15 @@ describe("XVault", function () {
     await xToken.connect(alice).approve(xVault.address, BASE);
     await expectRevert(xVault.connect(alice).redeemERC721({ value: 1 }));
     await xVault.connect(alice).redeemERC721({ value: 2 });
-    await xVault.connect(alice).mintERC20s(aliceNFTs);
-    const bobBal = parseInt((await nft.balanceOf(bob._address)).toString());
-    const vaultBal = parseInt((await nft.balanceOf(xVault.address)).toString());
+    await xVault.connect(alice).mintPunkMultiple(aliceNFTs);
+    const bobBal = parseInt((await cpm.balanceOf(bob._address)).toString());
+    const vaultBal = parseInt((await cpm.balanceOf(xVault.address)).toString());
     await xVault.connect(carol).migrate(bob._address);
-    expect((await nft.balanceOf(bob._address)).toString()).to.equal(
+    expect((await cpm.balanceOf(bob._address)).toString()).to.equal(
       (bobBal + vaultBal).toString()
     );
     for (let i = 0; i < aliceNFTs.length; i++) {
-      await nft
+      await cpm
         .connect(bob)
         .transferFrom(bob._address, xVault.address, aliceNFTs[i]);
     }

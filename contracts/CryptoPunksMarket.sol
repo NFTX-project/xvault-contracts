@@ -119,7 +119,7 @@ contract CryptoPunksMarket {
     }
 
     function getPunk(uint256 punkIndex) public {
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punksRemainingToAssign != 0);
         require(punkIndexToAddress[punkIndex] == address(0));
         require(punkIndex < 10000);
@@ -131,7 +131,7 @@ contract CryptoPunksMarket {
 
     // Transfer ownership of a punk to another user without requiring payment
     function transferPunk(address to, uint256 punkIndex) public {
-        // require(allPunksAssigned);
+        // // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] == msg.sender);
         require(punkIndex < 10000);
         if (punksOfferedForSale[punkIndex].isForSale) {
@@ -153,7 +153,7 @@ contract CryptoPunksMarket {
     }
 
     function punkNoLongerForSale(uint256 punkIndex) public {
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] == msg.sender);
         require(punkIndex < 10000);
         punksOfferedForSale[punkIndex] = Offer(
@@ -169,7 +169,7 @@ contract CryptoPunksMarket {
     function offerPunkForSale(uint256 punkIndex, uint256 minSalePriceInWei)
         public
     {
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] == msg.sender);
         require(punkIndex < 10000);
         punksOfferedForSale[punkIndex] = Offer(
@@ -187,7 +187,7 @@ contract CryptoPunksMarket {
         uint256 minSalePriceInWei,
         address toAddress
     ) public {
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] == msg.sender);
         require(punkIndex < 10000);
         punksOfferedForSale[punkIndex] = Offer(
@@ -201,7 +201,7 @@ contract CryptoPunksMarket {
     }
 
     function buyPunk(uint256 punkIndex) public payable {
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         Offer storage offer = punksOfferedForSale[punkIndex];
         require(punkIndex < 10000);
         require(offer.isForSale); // punk not actually for sale
@@ -231,7 +231,7 @@ contract CryptoPunksMarket {
     }
 
     function withdraw() public {
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         uint256 amount = pendingWithdrawals[msg.sender];
         // Remember to zero the pending revault before
         // sending to prevent re-entrancy attacks
@@ -241,7 +241,7 @@ contract CryptoPunksMarket {
 
     function enterBidForPunk(uint256 punkIndex) public payable {
         require(punkIndex < 10000);
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] != address(0));
         require(punkIndexToAddress[punkIndex] != msg.sender);
         require(msg.value != 0);
@@ -257,7 +257,7 @@ contract CryptoPunksMarket {
 
     function acceptBidForPunk(uint256 punkIndex, uint256 minPrice) public {
         require(punkIndex < 10000);
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] == msg.sender);
         address seller = msg.sender;
         Bid storage bid = punkBids[punkIndex];
@@ -284,7 +284,7 @@ contract CryptoPunksMarket {
 
     function withdrawBidForPunk(uint256 punkIndex) public {
         require(punkIndex < 10000);
-        require(allPunksAssigned);
+        // require(allPunksAssigned);
         require(punkIndexToAddress[punkIndex] != address(0));
         require(punkIndexToAddress[punkIndex] != msg.sender);
         Bid storage bid = punkBids[punkIndex];
