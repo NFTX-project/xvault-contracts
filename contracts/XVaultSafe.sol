@@ -34,7 +34,9 @@ contract XVaultSafe is XVaultBase, ReentrancyGuard {
         uint256 tokenId = reserves.at(0);
         getERC20().burnFrom(msg.sender, 10**18);
         reserves.remove(tokenId);
-        getERC721().safeTransferFrom(address(this), msg.sender, tokenId);
+
+        // getERC721().safeTransferFrom(address(this), msg.sender, tokenId);
+        getCPM().transferPunk(msg.sender, tokenId);
         emit TokenBurnedSafely(tokenId, msg.sender);
     }
 }

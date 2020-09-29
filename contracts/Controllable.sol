@@ -39,7 +39,7 @@ contract Controllable is Profitable {
         getERC20().burnFrom(to, 10**18);
         getReserves().remove(tokenId);
         if (!toSelf) {
-            getERC721().safeTransferFrom(address(this), to, tokenId);
+            getCPM().transferPunk(to, tokenId);
         }
         emit DirectRedemption(tokenId, _msgSender(), to);
     }
