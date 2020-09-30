@@ -10,14 +10,11 @@ contract Randomizable is Controllable {
     function getPseudoRand(uint256 modulus) internal returns (uint256) {
         randNonce = randNonce.add(1);
 
-        console.log(now);
+        /* console.log(now);
         console.log(_msgSender());
-        console.log(randNonce);
+        console.log(randNonce); */
         console.log(modulus);
 
-        console.log(uint256(keccak256(abi.encodePacked(now, _msgSender(), randNonce))));
-
-        return
-            0;
+        return 0;
     }
 }
