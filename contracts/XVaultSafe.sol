@@ -11,8 +11,11 @@ import "./utils/console.sol";
 contract XVaultSafe is XVaultBase, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.UintSet;
     EnumerableSet.UintSet private reserves;
+    bool private inSafeMode = true;
 
     event TokenBurnedSafely(uint256 erc721Id, address indexed to);
+
+    
 
     function getReserves()
         internal
@@ -20,6 +23,23 @@ contract XVaultSafe is XVaultBase, ReentrancyGuard {
         returns (EnumerableSet.UintSet storage)
     {
         return reserves;
+    }
+
+    function getInSafeMode() public view returns (bool) {
+        return inSafeMode;
+    }
+
+    function turnOffSafeMode() public onlyOwner {
+        inSafeMode = false;
+    }
+
+    function turnOnSafeMode() public onlyOwner {
+        inSafeMode = true;
+    }
+
+    modifier whenNotInSafeMode {
+        require(!inSafeMode, "Contract is in safe mode");
+        _;
     }
 
     function simpleRedeem() public whenPaused nonReentrant {

@@ -160,6 +160,7 @@ contract XVault is Manageable, ERC721Holder {
         payable
         nonReentrant
         whenNotPaused
+        whenNotInSafeMode
     {
         uint256 fee = getFee(_msgSender(), tokenIds.length, getMintFees());
         require(msg.value >= fee, "Value too low");
@@ -312,6 +313,7 @@ contract XVault is Manageable, ERC721Holder {
         payable
         nonReentrant
         whenNotPaused
+        whenNotInSafeMode
     {
         uint256 fee = getFee(_msgSender(), numTokens, getBurnFees());
         require(msg.value >= fee, "Value too low");
@@ -352,6 +354,7 @@ contract XVault is Manageable, ERC721Holder {
         payable
         nonReentrant
         whenNotPaused
+        whenNotInSafeMode
     {
         uint256 fee = getFee(_msgSender(), 1, getDualFees());
         require(msg.value >= fee, "Value too low");
@@ -364,6 +367,7 @@ contract XVault is Manageable, ERC721Holder {
         payable
         nonReentrant
         whenNotPaused
+        whenNotInSafeMode
     {
         uint256 numTokens = tokenIds.length;
         require(numTokens > 0, "No tokens");

@@ -6,6 +6,7 @@ const { expectRevert } = require("../utils/expectRevert");
 const BASE = BigNumber.from(10).pow(18);
 const zeroAddress = "0x0000000000000000000000000000000000000000";
 describe("XVault", function () {
+  this.timeout(0);
   it("Should run as expected", async function () {
     const checkBalances = async (alwaysPrint = false) => {
       let ownerBal = await xToken.balanceOf(initialOwner._address);
@@ -62,7 +63,9 @@ describe("XVault", function () {
     const initialBalance = await xToken.balanceOf(initialOwner._address);
     await xToken.connect(initialOwner).transfer(xVault.address, initialBalance);
 
-    // XVault: *.mintPunk *.redeemERC20
+    
+
+    // XVault: *.mintPunk *.redeemPunk
 
     const approveAndMint = async (
       signer,
@@ -111,8 +114,10 @@ describe("XVault", function () {
     console.log(aliceNFTs);
     console.log(bobNFTs);
     console.log();
-    console.log("✓ XVault: mintPunk, redeemERC20");
+    console.log("✓ XVault: mintPunk, redeemPunk");
     console.log();
+
+    await xVault.connect(initialOwner).turnOffSafeMode();
 
     await checkBalances();
 
@@ -156,8 +161,8 @@ describe("XVault", function () {
     await xVault.connect(bob).redeemPunk();
     await xVault.connect(bob).redeemPunk();
     console.log(selections);
-    console.log("✓ XVault: mintAndRedeem");
     console.log();
+    console.log("✓ XVault: mintAndRedeem");
 
     await checkBalances();
 
@@ -170,7 +175,7 @@ describe("XVault", function () {
       }
     };
 
-    // XVault: *.mintPunkMultiple, *.redeemERC721s
+    // XVault: *.mintPunkMultiple, *.redeemPunkMultiple
 
     aliceNFTs = await getUserHoldings(alice._address, 20);
     bobNFTs = await getUserHoldings(bob._address, 20);
@@ -199,7 +204,7 @@ describe("XVault", function () {
     expect((await xToken.balanceOf(alice._address)).toString()).to.equal("0");
 
     console.log();
-    console.log("✓ XVault: mintPunkMultiple, redeemERC721s");
+    console.log("✓ XVault: mintPunkMultiple, redeemPunkMultiple");
     console.log();
 
     await checkBalances();
@@ -402,7 +407,6 @@ describe("XVault", function () {
     await xVault.connect(alice).directRedeem(vaultNFTs[0], alice._address);
     expect(await cpm.punkIndexToAddress(vaultNFTs[0])).to.equal(alice._address);
 
-    console.log();
     console.log("✓ Controllable");
 
     //

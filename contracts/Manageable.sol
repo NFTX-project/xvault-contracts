@@ -13,7 +13,6 @@ contract Manageable is Randomizable {
         uint256 reservesLength = getReserves().length();
         for (uint256 i = 0; i < reservesLength; i++) {
             uint256 tokenId = getReserves().at(i);
-            console.log(tokenId);
             getCPM().transferPunk(to, tokenId);
         }
         emit MigrationComplete(to);
