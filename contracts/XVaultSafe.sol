@@ -6,16 +6,12 @@ import "./XVaultBase.sol";
 import "./EnumerableSet.sol";
 import "./ReentrancyGuard.sol";
 
-import "./utils/console.sol";
-
 contract XVaultSafe is XVaultBase, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.UintSet;
     EnumerableSet.UintSet private reserves;
     bool private inSafeMode = true;
 
-    event TokenBurnedSafely(uint256 erc721Id, address indexed to);
-
-    
+    event TokenBurnedSafely(uint256 punkId, address indexed to);
 
     function getReserves()
         internal
@@ -54,8 +50,6 @@ contract XVaultSafe is XVaultBase, ReentrancyGuard {
         uint256 tokenId = reserves.at(0);
         getERC20().burnFrom(msg.sender, 10**18);
         reserves.remove(tokenId);
-
-        // getERC721().safeTransferFrom(address(this), msg.sender, tokenId);
         getCPM().transferPunk(msg.sender, tokenId);
         emit TokenBurnedSafely(tokenId, msg.sender);
     }

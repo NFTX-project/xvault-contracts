@@ -6,6 +6,7 @@ import "./Timelocked.sol";
 
 contract Profitable is Timelocked {
     mapping(address => bool) private verifiedIntegrators;
+    uint256 private numIntegrators = 0;
     uint256[] private mintFees = [0, 0, 0];
     uint256[] private burnFees = [0, 0, 0];
     uint256[] private dualFees = [0, 0, 0];
@@ -16,15 +17,27 @@ contract Profitable is Timelocked {
     event IntegratorSet(address account, bool isVerified);
     event Withdrawal(address to, uint256 amount);
 
-    function getMintFees() internal view returns (uint256[] storage) {
+    function getMintFees() public view returns (uint256[] memory) {
         return mintFees;
     }
 
-    function getBurnFees() internal view returns (uint256[] storage) {
+    function getBurnFees() public view returns (uint256[] memory) {
         return burnFees;
     }
 
-    function getDualFees() internal view returns (uint256[] storage) {
+    function getDualFees() public view returns (uint256[] memory) {
+        return dualFees;
+    }
+
+    function _getMintFees() internal view returns (uint256[] storage) {
+        return mintFees;
+    }
+
+    function _getBurnFees() internal view returns (uint256[] storage) {
+        return burnFees;
+    }
+
+    function _getDualFees() internal view returns (uint256[] storage) {
         return dualFees;
     }
 
@@ -55,20 +68,34 @@ contract Profitable is Timelocked {
         emit DualFeesSet(newDualFees);
     }
 
+    function isIntegrator(address account) public view returns (bool) {
+        return verifiedIntegrators[account];
+    }
+
+    function getNumIntegrators() public view returns (uint256) {
+        return numIntegrators;
+    }
+
     function setIntegrator(address account, bool isVerified)
         public
         onlyOwner
         whenNotLockedM
     {
+        require(isVerified != verifiedIntegrators[account], "Already set");
+        if (isVerified) {
+            numIntegrators++;
+        } else {
+            numIntegrators--;
+        }
         verifiedIntegrators[account] = isVerified;
         emit IntegratorSet(account, isVerified);
     }
 
-    function getFee(
-        address account,
-        uint256 numTokens,
-        uint256[] storage fees
-    ) internal view returns (uint256) {
+    function getFee(address account, uint256 numTokens, uint256[] storage fees)
+        internal
+        view
+        returns (uint256)
+    {
         if (verifiedIntegrators[account]) {
             return 0;
         }

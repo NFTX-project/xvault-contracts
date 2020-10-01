@@ -11,6 +11,18 @@ contract Timelocked is XVaultSafe {
 
     uint256 private securityLevel;
 
+    function getSecurityLevel() public view returns (string memory) {
+        if (securityLevel == 0) {
+            return "red";
+        } else if (securityLevel == 1) {
+            return "orange";
+        } else if (securityLevel == 2) {
+            return "yellow";
+        } else {
+            return "green";
+        }
+    }
+
     function increaseSecurityLevel() public onlyOwner {
         require(securityLevel < 3, "Already max");
         securityLevel = securityLevel + 1;
@@ -20,11 +32,11 @@ contract Timelocked is XVaultSafe {
         return num * 60 * 60 * 24;
     }
 
-    function getDelay(Timelock length) public view returns (uint256) {
+    function getDelay(Timelock lockId) public view returns (uint256) {
         if (securityLevel == 0) {
             return 2; // for testing
         }
-        if (length == Timelock.Short) {
+        if (lockId == Timelock.Short) {
             if (securityLevel == 1) {
                 return timeInDays(1);
             } else if (securityLevel == 2) {
@@ -32,7 +44,7 @@ contract Timelocked is XVaultSafe {
             } else {
                 return timeInDays(3);
             }
-        } else if (length == Timelock.Medium) {
+        } else if (lockId == Timelock.Medium) {
             if (securityLevel == 1) {
                 return timeInDays(2);
             } else if (securityLevel == 2) {
@@ -53,23 +65,23 @@ contract Timelocked is XVaultSafe {
 
     mapping(Timelock => uint256) private releaseTimes;
 
-    event Locked(Timelock length);
+    event Locked(Timelock lockId);
 
-    event UnlockInitiated(Timelock length, uint256 whenUnlocked);
+    event UnlockInitiated(Timelock lockId, uint256 whenUnlocked);
 
-    function getReleaseTime(Timelock length) public view returns (uint256) {
-        return releaseTimes[length];
+    function getReleaseTime(Timelock lockId) public view returns (uint256) {
+        return releaseTimes[lockId];
     }
 
-    function initiateUnlock(Timelock length) public onlyOwner {
-        uint256 newReleaseTime = now.add(getDelay(length));
-        releaseTimes[length] = newReleaseTime;
-        emit UnlockInitiated(length, newReleaseTime);
+    function initiateUnlock(Timelock lockId) public onlyOwner {
+        uint256 newReleaseTime = now.add(getDelay(lockId));
+        releaseTimes[lockId] = newReleaseTime;
+        emit UnlockInitiated(lockId, newReleaseTime);
     }
 
-    function lock(Timelock length) public onlyOwner {
-        releaseTimes[length] = 0;
-        emit Locked(length);
+    function lock(Timelock lockId) public onlyOwner {
+        releaseTimes[lockId] = 0;
+        emit Locked(lockId);
     }
 
     modifier whenNotLockedS {

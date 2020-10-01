@@ -10,6 +10,10 @@ contract Pausable is Ownable {
     event Paused();
     event Unpaused();
 
+    function getIsPaused() public view returns (bool) {
+        return isPaused;
+    }
+
     function pause() public onlyOwner {
         isPaused = true;
     }

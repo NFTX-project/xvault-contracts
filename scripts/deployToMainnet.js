@@ -10,17 +10,17 @@ async function main() {
 
   const cryptoPunksAddress = "0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB";
 
-  const PunkToken = await ethers.getContractFactory("PunkToken");
-  const PunkVault = await ethers.getContractFactory("PunkVault");
+  const XToken = await ethers.getContractFactory("XToken");
+  const XVault = await ethers.getContractFactory("XVault");
 
-  const pt = await PunkToken.deploy();
-  await pt.deployed();
+  const xToken = await XToken.deploy("Punk", "PUNK");
+  await xToken.deployed();
 
-  const pf = await PunkVault.deploy(pt.address, cryptoPunksAddress);
-  await pf.deployed();
+  const xVault = await XVault.deploy(xToken.address, cryptoPunksAddress);
+  await xVault.deployed();
 
-  console.log("PunkToken address:", pt.address);
-  console.log("PunkVault address:", pf.address);
+  console.log("XToken address:", xToken.address);
+  console.log("XVault address:", xVault.address);
 }
 
 main()

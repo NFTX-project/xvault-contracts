@@ -8,22 +8,26 @@ async function main() {
 
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  const Erc721 = await ethers.getContractFactory("ERC721");
+  const CryptoPunksMarket = await ethers.getContractFactory(
+    "CryptoPunksMarket"
+  );
   const XToken = await ethers.getContractFactory("XToken");
   const XVault = await ethers.getContractFactory("XVault");
 
-  const nft = await Erc721.deploy("Nft", "NFT");
-  await nft.deployed();
+  const cpm = await CryptoPunksMarket.deploy();
+  await cpm.deployed();
 
   const xToken = await XToken.deploy("XToken", "XTO");
   await xToken.deployed();
 
-  const xVault = await XVault.deploy(xToken.address, nft.address);
+  const xVault = await XVault.deploy(xToken.address, cpm.address);
   await xVault.deployed();
 
   await xToken.transferOwnership(xVault.address);
+  await xVault.increaseSecurityLevel();
+  await xVault.transferOwnership("0x71D30468Ae4b9B9F931d076e21D1139D44199999");
 
-  console.log("NFT address:", nft.address);
+  console.log("CPM address:", cpm.address);
   console.log("XToken address:", xToken.address);
   console.log("XVault address:", xVault.address);
 }

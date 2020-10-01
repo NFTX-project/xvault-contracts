@@ -6,12 +6,17 @@ import "./Profitable.sol";
 
 contract Controllable is Profitable {
     mapping(address => bool) private verifiedControllers;
+    uint256 private numControllers = 0;
 
     event ControllerSet(address account, bool isVerified);
-    event DirectRedemption(uint256 erc721Id, address by, address indexed to);
+    event DirectRedemption(uint256 punkId, address by, address indexed to);
 
-    function isController(address account) internal view returns (bool) {
+    function isController(address account) public view returns (bool) {
         return verifiedControllers[account];
+    }
+
+    function getNumControllers() public view returns (uint256) {
+        return numControllers;
     }
 
     function setController(address account, bool isVerified)
@@ -19,6 +24,12 @@ contract Controllable is Profitable {
         onlyOwner
         whenNotLockedM
     {
+        require(isVerified != verifiedControllers[account], "Already set");
+        if (isVerified) {
+            numControllers++;
+        } else {
+            numControllers--;
+        }
         verifiedControllers[account] = isVerified;
         emit ControllerSet(account, isVerified);
     }
