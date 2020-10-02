@@ -65,6 +65,13 @@ describe("XVault", function () {
     const initialBalance = await xToken.balanceOf(initialOwner._address);
     await xToken.connect(initialOwner).transfer(xVault.address, initialBalance);
 
+    await xVault.connect(initialOwner).initiateUnlock(2);
+    console.log("");
+    console.log("unlocking...");
+    await new Promise((resolve) => setTimeout(() => resolve(), 3000));
+    await xVault.connect(initialOwner).setBurnFees([0, 0, 0, 0, 0]);
+    await xVault.connect(initialOwner).lock(2);
+
     /////////////////////////////////////
     // XVault: *.mintPunk *.redeemPunk //
     /////////////////////////////////////
@@ -323,7 +330,7 @@ describe("XVault", function () {
     await expectRevert(xVault.connect(carol).changeTokenName("Name"));
     await expectRevert(xVault.connect(carol).changeTokenSymbol("NAME"));
     await expectRevert(xVault.connect(carol).setMintFees([1, 1, 1]));
-    await expectRevert(xVault.connect(carol).setBurnFees([1, 1, 1]));
+    await expectRevert(xVault.connect(carol).setBurnFees([1, 1, 1, 0, 0]));
     await expectRevert(xVault.connect(carol).setDualFees([1, 1, 1]));
     ////////////////////////////////////////////////////////////////////////
     await xVault.connect(carol).initiateUnlock(1);
@@ -455,7 +462,7 @@ describe("XVault", function () {
     console.log();
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
     ////////////////////////////////////////////////////////////////////////
-    await xVault.connect(carol).setBurnFees([2, 2, 2]);
+    await xVault.connect(carol).setBurnFees([2, 2, 2, 0, 0]);
     await xToken.connect(alice).approve(xVault.address, BASE);
     await expectRevert(xVault.connect(alice).redeemPunk({ value: 1 }));
     await xVault.connect(alice).redeemPunk({ value: 2 });
@@ -472,7 +479,35 @@ describe("XVault", function () {
       await cpm.connect(bob).transferPunk(xVault.address, vaultNFTs[i]);
     }
     ////////////////////////////////////////////////////////////////////////
-    await xVault.connect(carol).setBurnFees([0, 0, 0]);
+
+    bobNFTs = await getUserHoldings(bob._address, 20);
+    const unit = BASE.div(100);
+    await xVault.connect(carol).setBurnFees([0, 0, 0, unit.toString(), 5]);
+
+    await xToken.connect(alice).approve(xVault.address, BASE.mul(9));
+    await xVault.connect(alice).redeemPunkMultiple(4);
+    for (let i = 0; i < 5; i++) {
+      await expectRevert(
+        xVault.connect(alice).redeemPunk({
+          value: unit
+            .mul(i + 1)
+            .sub(1)
+            .toString(),
+        })
+      );
+      await xVault
+        .connect(alice)
+        .redeemPunk({ value: unit.mul(i + 1).toString() });
+    }
+    aliceNFTs = await getUserHoldings(alice._address, 20);
+    await setApprovalForAll(alice, xVault.address, aliceNFTs.splice(0, 2));
+    // TODO:
+
+    return;
+    /* await xVault.connect(alice).redeemPunk(); */
+
+    ////////////////////////////////////////////////////////////////////////
+    await xVault.connect(carol).setBurnFees([0, 0, 0, 0, 0]);
     await xVault.connect(carol).lock(2);
 
     console.log("✓ Timelock.Long");

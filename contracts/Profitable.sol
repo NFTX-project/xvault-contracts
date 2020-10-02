@@ -8,7 +8,7 @@ contract Profitable is Timelocked {
     mapping(address => bool) private verifiedIntegrators;
     uint256 private numIntegrators = 0;
     uint256[] private mintFees = [0, 0, 0];
-    uint256[] private burnFees = [0, 0, 0];
+    uint256[] private burnFees = [0, 0, 0, (5 * 10**18), 20];
     uint256[] private dualFees = [0, 0, 0];
 
     event MintFeesSet(uint256[] mintFees);
@@ -46,6 +46,7 @@ contract Profitable is Timelocked {
         onlyOwner
         whenNotLockedM
     {
+        require(newMintFees.length == 3, "Wrong length");
         mintFees = newMintFees;
         emit MintFeesSet(newMintFees);
     }
@@ -55,6 +56,7 @@ contract Profitable is Timelocked {
         onlyOwner
         whenNotLockedL
     {
+        require(newBurnFees.length == 5, "Wrong length");
         burnFees = newBurnFees;
         emit BurnFeesSet(newBurnFees);
     }
@@ -64,6 +66,7 @@ contract Profitable is Timelocked {
         onlyOwner
         whenNotLockedM
     {
+        require(newDualFees.length == 3, "Wrong length");
         dualFees = newDualFees;
         emit DualFeesSet(newDualFees);
     }
@@ -96,13 +99,33 @@ contract Profitable is Timelocked {
         view
         returns (uint256)
     {
+        uint256 fee = 0;
         if (verifiedIntegrators[account]) {
             return 0;
+        } else if (numTokens == 1) {
+            fee = fees[0];
+        } else {
+            fee = fees[1] + numTokens * fees[2];
         }
-        if (numTokens == 1) {
-            return fees[0];
+        // if this is a burn operation...
+        if (fees.length > 3) {
+            // if reserves are low...
+            uint256 reservesLength = getReserves().length();
+            uint256 padding = fees[4];
+            if (reservesLength - numTokens <= padding) {
+                uint256 addedFee = 0;
+                for (uint256 i = 0; i < numTokens; i++) {
+                    if (
+                        reservesLength - i <= padding && reservesLength - i > 0
+                    ) {
+                        addedFee += (fees[3] *
+                            (padding - (reservesLength - i) + 1));
+                    }
+                }
+                fee += addedFee;
+            }
         }
-        return fees[1] + numTokens * fees[2];
+        return fee;
     }
 
     function withdraw(address payable to) public onlyOwner whenNotLockedM {
