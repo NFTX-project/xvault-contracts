@@ -500,16 +500,27 @@ describe("XVault", function () {
         .redeemPunk({ value: unit.mul(i + 1).toString() });
     }
     aliceNFTs = await getUserHoldings(alice._address, 20);
-    await setApprovalForAll(alice, xVault.address, aliceNFTs.splice(0, 2));
-    // TODO:
-
-    return;
-    /* await xVault.connect(alice).redeemPunk(); */
+    let arr = aliceNFTs.splice(0, 2);
+    
+    await setApprovalForAll(alice, xVault.address, arr);
+    
+    await xVault.connect(alice).mintPunkMultiple(arr);
+    
+    await xToken.connect(alice).approve(xVault.address, BASE.mul(2));
+    await expectRevert(xVault.connect(alice).redeemPunkMultiple(2, {
+      value: unit.mul(9).sub(1).toString()
+    }));
+    await xVault.connect(alice).redeemPunkMultiple(2, {
+      value: unit.mul(9).toString()
+    })
 
     ////////////////////////////////////////////////////////////////////////
     await xVault.connect(carol).setBurnFees([0, 0, 0, 0, 0]);
+    aliceNFTs = await getUserHoldings(alice._address, 20);
+    await setApprovalForAll(alice, xVault.address, aliceNFTs);
+    await xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(0, aliceNFTs.length - 1));
     await xVault.connect(carol).lock(2);
-
+    
     console.log("✓ Timelock.Long");
 
     ///////////////////////////////////////////////////////////////
@@ -533,5 +544,7 @@ describe("XVault", function () {
     console.log();
     console.log("✓ Pausable");
     console.log();
+
+    console.log("-- DONE --");
   });
 });
