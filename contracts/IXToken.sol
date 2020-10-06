@@ -2,7 +2,7 @@
 
 import "./IERC20.sol";
 
-pragma solidity ^0.6.0;
+pragma solidity 0.6.8;
 
 interface IXToken is IERC20 {
     function burn(uint256 amount) external;
@@ -16,4 +16,6 @@ interface IXToken is IERC20 {
     function changeSymbol(string calldata symbol) external;
 
     function setVaultAddress(address vaultAddress) external;
+
+    function transferOwnership(address newOwner) external;
 }

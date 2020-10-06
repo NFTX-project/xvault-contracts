@@ -19,6 +19,10 @@ async function main() {
   const xVault = await XVault.deploy(xToken.address, cryptoPunksAddress);
   await xVault.deployed();
 
+  await xToken.transferOwnership(xVault.address);
+  await xVault.increaseSecurityLevel();
+  await xVault.transferOwnership("0x71D30468Ae4b9B9F931d076e21D1139D44199999");
+
   console.log("XToken address:", xToken.address);
   console.log("XVault address:", xVault.address);
 }

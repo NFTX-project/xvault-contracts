@@ -8,12 +8,14 @@ contract Profitable is Timelocked {
     mapping(address => bool) private verifiedIntegrators;
     uint256 private numIntegrators = 0;
     uint256[] private mintFees = [0, 0, 0];
-    uint256[] private burnFees = [0, 0, 0, (5 * 10**18), 20];
+    uint256[] private burnFees = [0, 0, 0];
     uint256[] private dualFees = [0, 0, 0];
+    uint256[] private supplierBounty = [(5 * 10**18), 10];
 
     event MintFeesSet(uint256[] mintFees);
     event BurnFeesSet(uint256[] burnFees);
     event DualFeesSet(uint256[] dualFees);
+    event SupplierBountySet(uint256[] supplierBounty);
     event IntegratorSet(address account, bool isVerified);
     event Withdrawal(address to, uint256 amount);
 
@@ -27,6 +29,10 @@ contract Profitable is Timelocked {
 
     function getDualFees() public view returns (uint256[] memory) {
         return dualFees;
+    }
+
+    function getSupplierBounty() public view returns (uint256[] memory) {
+        return supplierBounty;
     }
 
     function _getMintFees() internal view returns (uint256[] storage) {
@@ -56,7 +62,7 @@ contract Profitable is Timelocked {
         onlyOwner
         whenNotLockedL
     {
-        require(newBurnFees.length == 5, "Wrong length");
+        require(newBurnFees.length == 3, "Wrong length");
         burnFees = newBurnFees;
         emit BurnFeesSet(newBurnFees);
     }
@@ -69,6 +75,16 @@ contract Profitable is Timelocked {
         require(newDualFees.length == 3, "Wrong length");
         dualFees = newDualFees;
         emit DualFeesSet(newDualFees);
+    }
+
+    function setSupplierBounty(uint256[] memory newSupplierBounty)
+        public
+        onlyOwner
+        whenNotLockedL
+    {
+        require(newSupplierBounty.length == 2, "Wrong length");
+        supplierBounty = newSupplierBounty;
+        emit SupplierBountySet(newSupplierBounty);
     }
 
     function isIntegrator(address account) public view returns (bool) {
@@ -86,9 +102,9 @@ contract Profitable is Timelocked {
     {
         require(isVerified != verifiedIntegrators[account], "Already set");
         if (isVerified) {
-            numIntegrators++;
+            numIntegrators = numIntegrators.add(1);
         } else {
-            numIntegrators--;
+            numIntegrators = numIntegrators.sub(1);
         }
         verifiedIntegrators[account] = isVerified;
         emit IntegratorSet(account, isVerified);
@@ -107,25 +123,41 @@ contract Profitable is Timelocked {
         } else {
             fee = fees[1] + numTokens * fees[2];
         }
-        // if this is a burn operation...
-        if (fees.length > 3) {
-            // if reserves are low...
-            uint256 reservesLength = getReserves().length();
-            uint256 padding = fees[4];
-            if (reservesLength - numTokens <= padding) {
-                uint256 addedFee = 0;
-                for (uint256 i = 0; i < numTokens; i++) {
-                    if (
-                        reservesLength - i <= padding && reservesLength - i > 0
-                    ) {
-                        addedFee += (fees[3] *
-                            (padding - (reservesLength - i) + 1));
-                    }
-                }
-                fee += addedFee;
-            }
-        }
         return fee;
+    }
+
+    function getBurnBounty(uint256 numTokens) internal view returns (uint256) {
+        uint256 bounty = 0;
+        uint256 reservesLength = getReserves().length();
+        uint256 padding = supplierBounty[1];
+        if (reservesLength - numTokens <= padding) {
+            uint256 addedAmount = 0;
+            for (uint256 i = 0; i < numTokens; i++) {
+                if (reservesLength - i <= padding && reservesLength - i > 0) {
+                    addedAmount += (supplierBounty[0] *
+                        (padding - (reservesLength - i) + 1));
+                }
+            }
+            bounty += addedAmount;
+        }
+        return bounty;
+    }
+
+    function getMintBounty(uint256 numTokens) internal view returns (uint256) {
+        uint256 bounty = 0;
+        uint256 reservesLength = getReserves().length();
+        uint256 padding = supplierBounty[1];
+        if (reservesLength <= padding) {
+            uint256 addedAmount = 0;
+            for (uint256 i = 0; i < numTokens; i++) {
+                if (reservesLength + i <= padding) {
+                    addedAmount += (supplierBounty[0] *
+                        (padding - (reservesLength + i)));
+                }
+            }
+            bounty += addedAmount;
+        }
+        return bounty;
     }
 
     function withdraw(address payable to) public onlyOwner whenNotLockedM {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.6.0 <0.7.0;
+pragma solidity 0.6.8;
 
 import "./Manageable.sol";
 
@@ -34,8 +34,22 @@ contract XVault is Manageable {
         whenNotPaused
     {
         uint256 fee = getFee(_msgSender(), 1, _getMintFees());
-        require(msg.value >= fee, "Value too low");
-        _mintPunk(tokenId, false);
+        uint256 bounty = getMintBounty(1);
+        if (fee > bounty) {
+            uint256 differnce = fee.sub(bounty);
+            require(msg.value >= differnce, "Value too low");
+        }
+        bool success = _mintPunk(tokenId, false);
+        if (success && bounty > fee) {
+            uint256 difference = bounty.sub(fee);
+            uint256 balance = address(this).balance;
+            address payable sender = _msgSender();
+            if (balance >= difference) {
+                sender.transfer(difference);
+            } else {
+                sender.transfer(balance);
+            }
+        }
     }
 
     function _mintPunk(uint256 tokenId, bool partOfDualOp)
@@ -74,8 +88,26 @@ contract XVault is Manageable {
         whenNotInSafeMode
     {
         uint256 fee = getFee(_msgSender(), tokenIds.length, _getMintFees());
-        require(msg.value >= fee, "Value too low");
-        _mintPunkMultiple(tokenIds, false);
+        uint256 bounty = getMintBounty(tokenIds.length);
+        require(bounty >= fee || msg.value >= fee.sub(bounty), "Value too low");
+        uint256 numTokens = _mintPunkMultiple(tokenIds, false);
+        require(numTokens > 0, "No tokens minted");
+        require(numTokens == tokenIds.length, "Untransferable punks");
+        if (fee > bounty) {
+            uint256 differnce = fee.sub(bounty);
+            require(msg.value >= differnce, "Value too low");
+        }
+        if (bounty > fee) {
+            uint256 difference = bounty.sub(fee);
+            uint256 balance = address(this).balance;
+            address payable sender = _msgSender();
+            if (balance >= difference) {
+                sender.transfer(difference);
+            } else {
+                sender.transfer(balance);
+            }
+        }
+
     }
 
     function _mintPunkMultiple(uint256[] memory tokenIds, bool partOfDualOp)
@@ -122,7 +154,8 @@ contract XVault is Manageable {
     }
 
     function redeemPunk() public payable nonReentrant whenNotPaused {
-        uint256 fee = getFee(_msgSender(), 1, _getBurnFees());
+        uint256 fee = getFee(_msgSender(), 1, _getBurnFees()) +
+            getBurnBounty(1);
         require(msg.value >= fee, "Value too low");
         _redeemPunk(false);
     }
@@ -157,7 +190,8 @@ contract XVault is Manageable {
         whenNotPaused
         whenNotInSafeMode
     {
-        uint256 fee = getFee(_msgSender(), numTokens, _getBurnFees());
+        uint256 fee = getFee(_msgSender(), numTokens, _getBurnFees()) +
+            getBurnBounty(numTokens);
         require(msg.value >= fee, "Value too low");
         _redeemPunkMultiple(numTokens, false);
     }

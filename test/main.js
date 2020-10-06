@@ -69,7 +69,7 @@ describe("XVault", function () {
     console.log("");
     console.log("unlocking...");
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
-    await xVault.connect(initialOwner).setBurnFees([0, 0, 0, 0, 0]);
+    await xVault.connect(initialOwner).setSupplierBounty([0, 0]);
     await xVault.connect(initialOwner).lock(2);
 
     /////////////////////////////////////
@@ -330,7 +330,7 @@ describe("XVault", function () {
     await expectRevert(xVault.connect(carol).changeTokenName("Name"));
     await expectRevert(xVault.connect(carol).changeTokenSymbol("NAME"));
     await expectRevert(xVault.connect(carol).setMintFees([1, 1, 1]));
-    await expectRevert(xVault.connect(carol).setBurnFees([1, 1, 1, 0, 0]));
+    await expectRevert(xVault.connect(carol).setBurnFees([1, 1, 1]));
     await expectRevert(xVault.connect(carol).setDualFees([1, 1, 1]));
     ////////////////////////////////////////////////////////////////////////
     await xVault.connect(carol).initiateUnlock(1);
@@ -396,7 +396,7 @@ describe("XVault", function () {
     console.log("✓ Profitable: setDualFees");
     console.log();
 
-    // Profitable: *.setIntegrator
+    // Profitable: *.setIntegrator, *.isIntegrator, *getNumIntegrators
     aliceNFTs = await getUserHoldings(alice._address, 20);
 
     await expectRevert(
@@ -406,12 +406,18 @@ describe("XVault", function () {
       .connect(alice)
       .offerPunkForSaleToAddress(aliceNFTs[0], 0, xVault.address);
     await expectRevert(xVault.connect(alice).mintPunk(aliceNFTs[0]));
+    expect((await xVault.getNumIntegrators()).toString()).to.equal("0");
+    expect(await xVault.isIntegrator(alice._address)).to.equal(false);
     await xVault.connect(carol).setIntegrator(alice._address, true);
+    expect((await xVault.getNumIntegrators()).toString()).to.equal("1");
+    expect(await xVault.isIntegrator(alice._address)).to.equal(true);
     await xVault.connect(alice).mintPunk(aliceNFTs[0]);
 
     await xToken.connect(alice).approve(xVault.address, BASE.mul(4).toString());
     await xVault.connect(alice).redeemPunkMultiple(4);
     await xVault.connect(carol).setIntegrator(alice._address, false);
+    expect((await xVault.getNumIntegrators()).toString()).to.equal("0");
+    expect(await xVault.isIntegrator(alice._address)).to.equal(false);
     await xVault.connect(carol).setMintFees([0, 0, 0]);
     await xVault.connect(carol).setDualFees([0, 0, 0]);
 
@@ -462,7 +468,7 @@ describe("XVault", function () {
     console.log();
     await new Promise((resolve) => setTimeout(() => resolve(), 3000));
     ////////////////////////////////////////////////////////////////////////
-    await xVault.connect(carol).setBurnFees([2, 2, 2, 0, 0]);
+    await xVault.connect(carol).setBurnFees([2, 2, 2]);
     await xToken.connect(alice).approve(xVault.address, BASE);
     await expectRevert(xVault.connect(alice).redeemPunk({ value: 1 }));
     await xVault.connect(alice).redeemPunk({ value: 2 });
@@ -478,13 +484,16 @@ describe("XVault", function () {
     for (let i = 0; i < vaultNFTs.length; i++) {
       await cpm.connect(bob).transferPunk(xVault.address, vaultNFTs[i]);
     }
+    await xToken.connect(bob).transferOwnership(xVault.address);
     ////////////////////////////////////////////////////////////////////////
 
     bobNFTs = await getUserHoldings(bob._address, 20);
     const unit = BASE.div(100);
-    await xVault.connect(carol).setBurnFees([0, 0, 0, unit.toString(), 5]);
+    await xVault.connect(carol).setBurnFees([0, 0, 0]);
+    await xVault.connect(carol).setSupplierBounty([unit.toString(), 5]);
 
     await xToken.connect(alice).approve(xVault.address, BASE.mul(9));
+
     await xVault.connect(alice).redeemPunkMultiple(4);
     for (let i = 0; i < 5; i++) {
       await expectRevert(
@@ -501,26 +510,63 @@ describe("XVault", function () {
     }
     aliceNFTs = await getUserHoldings(alice._address, 20);
     let arr = aliceNFTs.splice(0, 2);
-    
+
     await setApprovalForAll(alice, xVault.address, arr);
-    
+
     await xVault.connect(alice).mintPunkMultiple(arr);
-    
+
     await xToken.connect(alice).approve(xVault.address, BASE.mul(2));
-    await expectRevert(xVault.connect(alice).redeemPunkMultiple(2, {
-      value: unit.mul(9).sub(1).toString()
-    }));
+    await expectRevert(
+      xVault.connect(alice).redeemPunkMultiple(2, {
+        value: unit.mul(9).sub(1).toString(),
+      })
+    );
+    await checkBalances();
     await xVault.connect(alice).redeemPunkMultiple(2, {
-      value: unit.mul(9).toString()
-    })
+      value: unit.mul(9).toString(),
+    });
+    aliceNFTs = await getUserHoldings(alice._address, 20);
+    await setApprovalForAll(alice, xVault.address, aliceNFTs.slice(0, 2));
+    let balance = await web3.eth.getBalance(xVault.address);
+    await xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(0, 2));
+    let newBalance = await web3.eth.getBalance(xVault.address);
+    expect(BigNumber.from(balance).sub(newBalance).toString()).to.equal(
+      unit.mul(5 + 4).toString()
+    );
+    await setApprovalForAll(alice, xVault.address, aliceNFTs.slice(2));
+    balance = await web3.eth.getBalance(xVault.address);
+    await xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(2));
+    newBalance = await web3.eth.getBalance(xVault.address);
+    expect(BigNumber.from(balance).sub(newBalance).toString()).to.equal(
+      unit.mul(3 + 2 + 1).toString()
+    );
+    let tBal = await xToken.balanceOf(alice._address);
+    await xToken.connect(alice).approve(xVault.address, tBal);
+    let num = 5 + 4 + 3 + 2 + 1;
+
+    await expectRevert(
+      xVault.connect(alice).redeemPunkMultiple(BigNumber.from(tBal).div(BASE), {
+        value: unit.mul(num).sub(1).toString(),
+      })
+    );
+    await xVault
+      .connect(alice)
+      .redeemPunkMultiple(BigNumber.from(tBal).div(BASE), {
+        value: unit.mul(num).toString(),
+      });
 
     ////////////////////////////////////////////////////////////////////////
-    await xVault.connect(carol).setBurnFees([0, 0, 0, 0, 0]);
+    await xVault.connect(carol).setSupplierBounty([0, 0]);
     aliceNFTs = await getUserHoldings(alice._address, 20);
     await setApprovalForAll(alice, xVault.address, aliceNFTs);
-    await xVault.connect(alice).mintPunkMultiple(aliceNFTs.slice(0, aliceNFTs.length - 1));
+    await xVault
+      .connect(alice)
+      .mintPunkMultiple(aliceNFTs.slice(0, aliceNFTs.length - 1));
     await xVault.connect(carol).lock(2);
-    
+
+    console.log("✓ Profitable: setBurnFees");
+    console.log();
+
     console.log("✓ Timelock.Long");
 
     ///////////////////////////////////////////////////////////////
@@ -535,7 +581,7 @@ describe("XVault", function () {
     await expectRevert(xVault.connect(alice).simpleRedeem());
     await xVault.connect(carol).pause();
     let aliceBal = await xToken.balanceOf(alice._address);
-    let balance = await xToken.balanceOf(alice._address);
+    balance = await xToken.balanceOf(alice._address);
     await xVault.connect(alice).simpleRedeem();
     expect((await xToken.balanceOf(alice._address)).toString()).to.equal(
       balance.sub(BASE).toString()
@@ -545,6 +591,6 @@ describe("XVault", function () {
     console.log("✓ Pausable");
     console.log();
 
-    console.log("-- DONE --");
+    console.log("-- DONE --\n");
   });
 });

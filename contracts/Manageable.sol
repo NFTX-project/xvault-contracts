@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.6.0 <0.7.0;
+pragma solidity 0.6.8;
 
 import "./Randomizable.sol";
 
@@ -15,6 +15,7 @@ contract Manageable is Randomizable {
             uint256 tokenId = getReserves().at(i);
             getCPM().transferPunk(to, tokenId);
         }
+        getERC20().transferOwnership(to);
         emit MigrationComplete(to);
     }
 

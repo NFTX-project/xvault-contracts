@@ -1,5 +1,6 @@
 require("dotenv").config();
 usePlugin("@nomiclabs/buidler-waffle");
+usePlugin("@nomiclabs/buidler-web3");
 
 module.exports = {
   networks: {
